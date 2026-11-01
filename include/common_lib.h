@@ -126,7 +126,10 @@ Params loadParameters(std::shared_ptr<rclcpp::Node> node) {
     params.delta_width_circles = node->get_parameter("delta_width_circles").as_double();
     params.delta_height_circles = node->get_parameter("delta_height_circles").as_double();
     params.circle_radius = node->get_parameter("circle_radius").as_double();
-    
+
+    node->declare_parameter("min_detected_markers", 4);
+    params.min_detected_markers = node->get_parameter("min_detected_markers").as_int();
+
     node->declare_parameter("x_min", 2.0);
     node->declare_parameter("x_max", 5.0);
     node->declare_parameter("y_min", -1.0);

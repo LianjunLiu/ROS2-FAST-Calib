@@ -9,7 +9,7 @@ which is included as part of this source code package.
 #define DATA_PREPROCESS_HPP
 
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <livox_ros_driver/msg/custom_msg.hpp>
+#include <livox_ros_driver2/msg/custom_msg.hpp>
 #include <Eigen/Core>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
@@ -95,10 +95,10 @@ private:
                         //    message_count, bag_message->topic_name.c_str());
                 
                 // 根据实际消息类型处理
-                if (message_type == "livox_ros_driver/msg/CustomMsg") {
+                if (message_type == "livox_ros_driver2/msg/CustomMsg") {
                     // Handle Livox custom message for ROS2
-                    auto livox_msg = std::make_shared<livox_ros_driver::msg::CustomMsg>();
-                    rclcpp::Serialization<livox_ros_driver::msg::CustomMsg> serialization;
+                    auto livox_msg = std::make_shared<livox_ros_driver2::msg::CustomMsg>();
+                    rclcpp::Serialization<livox_ros_driver2::msg::CustomMsg> serialization;
                     rclcpp::SerializedMessage serialized_msg(*bag_message->serialized_data);
                     serialization.deserialize_message(&serialized_msg, livox_msg.get());
                     

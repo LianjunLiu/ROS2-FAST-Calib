@@ -11,7 +11,7 @@ which is included as part of this source code package.
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
-#include <opencv2/aruco.hpp>
+#include <opencv2/objdetect/aruco_detector.hpp>
 #include <opencv2/opencv.hpp>
 #include "common_lib.h"
 
@@ -22,7 +22,7 @@ private:
     double delta_width_qr_center_, delta_height_qr_center_;
     double delta_width_circles_, delta_height_circles_;
     int min_detected_markers_;
-    cv::Ptr<cv::aruco::Dictionary> dictionary_;
+    cv::aruco::Dictionary dictionary_;
     
 public:
     cv::Mat cameraMatrix_, distCoeffs_;
@@ -143,24 +143,23 @@ public:
       }
 
       std::vector<int> boardIds{1, 2, 4, 3};  // IDs order as explained above
-      cv::Ptr<cv::aruco::Board> board =
-          cv::aruco::Board::create(boardCorners, dictionary_, boardIds);
+      cv::aruco::Board board(boardCorners, dictionary_, boardIds);
 
-      cv::Ptr<cv::aruco::DetectorParameters> parameters =
-          cv::aruco::DetectorParameters::create();
+      cv::aruco::DetectorParameters parameters;
       // set tp use corner refinement for accuracy, values obtained
       // for pixel coordinates are more accurate than the neaterst pixel
 
     #if (CV_MAJOR_VERSION == 3 && CV_MINOR_VERSION <= 2) || CV_MAJOR_VERSION < 3
       parameters->doCornerRefinement = true;
     #else
-      parameters->cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
+      parameters.cornerRefinementMethod = cv::aruco::CORNER_REFINE_SUBPIX;
     #endif
 
       // Detect markers
       std::vector<int> ids;
       std::vector<std::vector<cv::Point2f>> corners;
-      cv::aruco::detectMarkers(image, dictionary_, corners, ids, parameters);
+      cv::aruco::ArucoDetector detector(dictionary_, parameters);
+      detector.detectMarkers(image, corners, ids);
 
       // Draw detections if at least one marker detected
       if (ids.size() > 0) cv::aruco::drawDetectedMarkers(imageCopy_, corners, ids);
@@ -176,8 +175,18 @@ public:
         // Estimate 3D position of the markers
         vector<Vec3d> rvecs, tvecs;
         Vec3f rvec_sin, rvec_cos;
-        cv::aruco::estimatePoseSingleMarkers(corners, marker_size_, cameraMatrix_,
-                                            distCoeffs_, rvecs, tvecs);
+        // OpenCV 4.7+ 移除了 estimatePoseSingleMarkers，逐 marker solvePnP 替代
+        float half_marker = (float)marker_size_ / 2.0f;
+        for (size_t mi = 0; mi < ids.size(); ++mi) {
+          std::vector<cv::Point3f> markerObjPoints = {
+              {-half_marker,  half_marker, 0}, { half_marker,  half_marker, 0},
+              { half_marker, -half_marker, 0}, {-half_marker, -half_marker, 0}};
+          cv::Vec3d rvec_i, tvec_i;
+          cv::solvePnP(markerObjPoints, corners[mi], cameraMatrix_, distCoeffs_,
+                       rvec_i, tvec_i);
+          rvecs.push_back(rvec_i);
+          tvecs.push_back(tvec_i);
+        }
 
         // Draw markers' axis and centers in color image (Debug purposes)
         for (int i = 0; i < ids.size(); i++) {
@@ -185,8 +194,8 @@ public:
           double y = tvecs[i][1];
           double z = tvecs[i][2];
 
-          cv::aruco::drawAxis(imageCopy_, cameraMatrix_, distCoeffs_, rvecs[i],
-                              tvecs[i], 0.1);
+          cv::drawFrameAxes(imageCopy_, cameraMatrix_, distCoeffs_, rvecs[i],
+                            tvecs[i], 0.1);
 
           // Accumulate pose for initial guess
           tvec[0] += tvecs[i][0];
@@ -214,18 +223,19 @@ public:
         pcl::PointCloud<pcl::PointXYZ>::Ptr candidates_cloud(new pcl::PointCloud<pcl::PointXYZ>);
 
     // Estimate 3D position of the board using detected markers
-    #if (CV_MAJOR_VERSION == 3 && CV_MINOR_VERSION <= 2) || CV_MAJOR_VERSION < 3
-        int valid = cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix_,
-                                                distCoeffs_, rvec, tvec);
-    #else
-        int valid = cv::aruco::estimatePoseBoard(corners, ids, board, cameraMatrix_,
-                                                distCoeffs_, rvec, tvec, true);
-    #endif
+        // OpenCV 4.7+ 移除了 estimatePoseBoard，用 matchImagePoints + solvePnP 替代
+        std::vector<cv::Point3f> boardObjPoints;
+        std::vector<cv::Point2f> boardImgPoints;
+        board.matchImagePoints(corners, ids, boardObjPoints, boardImgPoints);
+        if (boardObjPoints.size() >= 4) {
+          cv::solvePnP(boardObjPoints, boardImgPoints, cameraMatrix_, distCoeffs_,
+                       rvec, tvec, true, cv::SOLVEPNP_ITERATIVE);
+        }
 
 
         // cout << "board: " <<  tvec[0] << ", "<< tvec[1] << ", " << tvec[2] << std::endl;
 
-        cv::aruco::drawAxis(imageCopy_, cameraMatrix_, distCoeffs_, rvec, tvec, 0.2);
+        cv::drawFrameAxes(imageCopy_, cameraMatrix_, distCoeffs_, rvec, tvec, 0.2);
 
         // Build transformation matrix to calibration target axis
         cv::Mat R(3, 3, cv::DataType<float>::type);

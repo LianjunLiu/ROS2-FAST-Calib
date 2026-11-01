@@ -1,98 +1,38 @@
-# ROS2参数文件格式
+# FAST-Calib 配置 —— Livox MID360S + Intel RealSense D455F
 /**:
   ros__parameters:
-    # Camera intrinsics  
-    # mid360
-    # fx: 843.501050605967
-    # fy: 845.199690011973
-    # cx: 321.017429415352
-    # cy: 239.294896816737
-    # k1: -0.465219389887045
-    # k2: 0.237050091701749
-    # p1: 0.00521922785740506
-    # p2: 0.000418186016514835
+    # ---- 相机内参（D455F color 848x480，取自 camera_d455f.yaml）----
+    fx: 426.799072265625
+    fy: 426.08453369140625
+    cx: 428.6304626464844
+    cy: 247.6750946044922
+    k1: -0.0554705411195755
+    k2: 0.06080550700426102
+    p1: -0.000496378168463707
+    p2: 0.0004438387986738235
 
-    # avia
-    # fx: 1215.31801774424
-    # fy: 1214.72961288138
-    # cx: 1047.86571859677
-    # cy: 745.068353101898
-    # k1: -0.33574781188503
-    # k2: 0.10996870793601
-    # p1: 0.000157303079833973
-    # p2: 0.000544930726278493
+    # ---- 标定板参数（官方板默认值；务必用尺子量一下核对，尤其 marker_size）----
+    marker_size: 0.20            # ArUco 标记边长(m)。官方注释提到测试数据用 0.16，量黑方块边长确认后改这里
+    delta_width_qr_center: 0.55  # 两个 marker 中心水平距离的一半(m)
+    delta_height_qr_center: 0.35 # 两个 marker 中心垂直距离的一半(m)
+    delta_width_circles: 0.5     # 两个圆孔中心水平距离(m)
+    delta_height_circles: 0.4    # 两个圆孔中心垂直距离(m)
+    circle_radius: 0.12          # 圆孔半径(m)
+    min_detected_markers: 4      # 至少检测到的 marker 数（板子共 4 个 ArUco marker）
 
-    # ouster
-    # fx: 1466.16500795563
-    # fy: 1465.32657394431
-    # cx: 1214.39964380518
-    # cy: 1010.97681425650
-    # k1: -0.0458344972140773
-    # k2: 0.0896961240772692
-    # p1: -0.000731746350601389
-    # p2: -0.000201478932371979
+    # ---- 距离滤波（只保留标定板附近的点，单位 m）----
+    # 板子正对雷达时用；板子朝左/朝右时要相应放宽 y 范围
+    x_min: 1.5
+    x_max: 6.0
+    y_min: -1.5
+    y_max: 1.5
+    z_min: -1.5
+    z_max: 2.0
 
-    # multi-scene
-    # fx: 2478.48702288166
-    # fy: 2478.58544825456
-    # cx: 1230.99707596681
-    # cy: 1025.66149498072
-    # k1: -0.0493178189623200
-    # k2: 0.147394487986097
-    # p1: -0.00127118592043482
-    # p2: -0.00200379689523022
+    # ---- 输入（每跑一个场景前改 bag_path / image_path）----
+    lidar_topic: "/livox/lidar"
+    bag_path: "/home/liu/ROS2-PX4-RW/src/FAST-Calib_ROS2/calib_data/scene1"
+    image_path: "/home/liu/ROS2-PX4-RW/src/FAST-Calib_ROS2/calib_data/scene1.png"
 
-    cx: 800.6436856555338
-    cy: 619.9925534773015
-    fx: 943.327197257198
-    fy: 941.2429406642943
-    k1: -0.06697406684683851
-    k2: 0.13045426738011118
-    p1: -0.00010525591937071462
-    p2: 0.005632121260241997
-
-    # Calibration target parameters
-    marker_size: 0.20 # ArUco marker size (our test data uses 0.16m; adjust to match your marker size)
-    delta_width_qr_center: 0.55 # Half the distance between the centers of two markers in the horizontal direction 
-    delta_height_qr_center: 0.35 # Half the distance between the centers of two markers in the vertical direction
-    delta_width_circles: 0.5 # Distance between the centers of two circles in the horizontal direction
-    delta_height_circles: 0.4 # Distance between the centers of two circles in the vertical direction
-    circle_radius: 0.12 # Radius of the circle 
-
-    # Distance filter
-    # x_min: 3.0 # avia and mid360: 2.0 ouster: 1.5
-    # x_max: 5.0
-    # y_min: -0.5
-    # y_max: 3.0
-    # z_min: 0.0 # avia and mid360: -0.5 ouster: -0.8
-    # z_max: 2.0
-
-    # multi_scene_11
-    # x_min: 2.0
-    # x_max: 5.0
-    # y_min: -1.0
-    # y_max: 1.0
-    # z_min: 0.0
-    # z_max: 2.0
-    # multi_scene_22
-    # x_min: 2.0
-    # x_max: 5.0
-    # y_min: -4.0
-    # y_max: 1.0
-    # z_min: 0.0
-    # z_max: 2.0
-    # multi_scene_33
-    x_min: 1.0
-    x_max: 3.0
-    y_min: -1.0
-    y_max: 1.0
-    z_min: -2.0
-    z_max: 1.0
-
-    # Input
-    lidar_topic: "/livox/lidar" # /ouster/points /livox/lidar
-    bag_path: "/home/turingzero/ros_ws/ws/src/FAST-Calib_ROS2/avia/bag3"
-    image_path: "/home/turingzero/ros_ws/ws/src/FAST-Calib_ROS2/avia/bag3.bmp"
-
-    # Output
-    output_path: "/home/turingzero/ros_ws/ws/src/FAST-Calib_ROS2/avia/output"
+    # ---- 输出 ----
+    output_path: "/home/liu/ROS2-PX4-RW/src/FAST-Calib_ROS2/output"
